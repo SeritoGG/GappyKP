@@ -1,171 +1,139 @@
 #include <iostream>
 #include <vector>
-#include <cstdlib>
-#include <ctime>
-
 using namespace std;
 
-// Класс для представления ячейки
-class Cell 
+class GappyPuzzle 
 {
 public:
-    bool hasMine;
-    bool revealed;
-    int neighboringMines;
 
-    Cell() : hasMine(false), revealed(false), neighboringMines(0) {}
-};
+    GappyPuzzle(int size) : size(size), grid(size, vector<char>(size, ' ')) {}
 
-// Класс для игры Сапер
-class Minesweeper 
-{
-private:
-    vector<vector<Cell>> grid;
-    int width;
-    int height;
-    int mines;
-
-    // Размещение мин на поле
-    void placeMines() 
+    void startGame() 
     {
-        srand(static_cast<unsigned int>(time(0)));
 
-        for (int i = 0; i < mines; ) 
+        displayMenu();
+
+        if (!confirmStart()) 
         {
-            int x = rand() % height;
-            int y = rand() % width;
-
-            if (!grid[x][y].hasMine) 
-            {
-                grid[x][y].hasMine = true;
-                i++;
-            }
-        }
-    }
-
-    // Подсчет соседних мин
-    void calculateNeighboringMines() 
-    {
-        for (int x = 0; x < height; x++) 
-        {
-            for (int y = 0; y < width; y++) 
-            {
-                if (grid[x][y].hasMine) 
-                {
-                    for (int dx = -1; dx <= 1; dx++) 
-                    {
-                        for (int dy = -1; dy <= 1; dy++) 
-                        {
-                            int nx = x + dx;
-                            int ny = y + dy;
-
-                            if (nx >= 0 && nx < height && ny >= 0 && ny < width) 
-                            {
-                                grid[nx][ny].neighboringMines++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-public:
-    Minesweeper(int w, int h, int m) : width(w), height(h), mines(m) 
-    {
-        grid.resize(height, vector<Cell>(width));
-        placeMines();
-        calculateNeighboringMines();
-    }
-
-    // Раскрытие клетки 
-    bool reveal(int x, int y) 
-    {
-        if (x < 0 || x >= height || y < 0 || y >= width || grid[x][y].revealed) 
-        {
-            return true;
+            cout << "Игра не начата. Выход..." << endl;
+            return;
         }
 
-        grid[x][y].revealed = true;
-
-        if (grid[x][y].neighboringMines == 0 && !grid[x][y].hasMine) 
-        {
-            for (int dx = -1; dx <= 1; dx++) 
-            {
-                for (int dy = -1; dy <= 1; dy++) 
-                {
-                    reveal(x + dx, y + dy); 
-                }
-            }
-        }
-
-        return !grid[x][y].hasMine;
-    }
-
-
-    // Отображение игрового поля
-    void display() 
-    {
-        cout << "  ";
-
-        for (int y = 0; y < width; y++) cout << y << " ";
-        cout << endl;
-
-        for (int x = 0; x < height; x++) 
-        {
-            cout << x << " ";
-
-            for (int y = 0; y < width; y++) 
-            {
-                if (grid[x][y].revealed) 
-                {
-                    if (grid[x][y].hasMine) 
-                    {
-                        cout << "* ";
-                    } else {
-                        cout << grid[x][y].neighboringMines << " ";
-                    }
-                } else {
-                    cout << ". ";
-                }
-            }
-            cout << endl;
-        }
-    }
-};
-
-class Game 
-{
-private:
-    Minesweeper* game;
-public:
-    Game(int width, int height, int mines) 
-    {
-        game = new Minesweeper(width, height, mines);
-    }
-
-    void play() 
-    {
-        int x, y;
+        printGrid();
 
         while (true) 
         {
-            game->display();
-            cout << "Введите координаты (x y) для раскрытия: "; cin >> x >> y;
+            int row, col;
+            cout << "Введите координаты черной клетки (row col) или -1 для выхода: "; cin >> row;
 
-            if (!(*game).reveal(x, y)) 
+            
+            if (row == -1) 
             {
-                cout << "Игра окончена! Вы попали на мину." << endl;
-                game->display();
+                cout << "Выход из игры." << endl;
                 break;
             }
+
+            cin >> col;
+
+            
+            if (row < 0 || row >= size || col < 0 || col >= size) 
+            {
+                cout << "Координаты вне границ! Попробуйте снова." << endl;
+                continue;
+            }
+
+            if (placeBlackCell(row, col)) 
+            {
+                printGrid();
+                if (checkWin()) 
+                {
+                    cout << "Поздравляем! Вы выиграли!" << endl;
+                    break;
+                }
+            } else cout << "Нельзя поставить черную клетку здесь! Попробуйте снова." << endl;
         }
+    }
+
+private:
+
+    int size;
+    vector<vector<char>> grid;
+
+    void displayMenu() 
+    {
+        cout << "Добро пожаловать в игру Gappy!" << endl;
+        cout << "Правила игры:" << endl;
+        cout << "1. Ваша цель - разместить черные клетки в квадратной сетке." << endl;
+        cout << "2. В каждом ряду и столбце должно быть ровно 2 черные клетки." << endl;
+        cout << "3. Черные клетки не могут касаться друг друга, даже углами." << endl;
+        cout << "4. Вводите координаты для размещения черных клеток в формате: row col" << endl;
+        cout << "5. Введите -1 для выхода из игры." << endl;
+        cout << endl;
+    }
+
+    bool confirmStart() 
+    {
+        char choice;
+        cout << "Вы готовы начать игру? (y/n): "; cin >> choice;
+        return (toupper(choice) == 'Y');
+    }
+
+    bool placeBlackCell(int row, int col) 
+    {
+        if (grid[row][col] != ' ') return false;
+        if (!canPlaceBlackCell(row, col)) return false;
+
+        grid[row][col] = '#';
+        return true;
+    }
+
+    bool canPlaceBlackCell(int row, int col) 
+    {
+        for (int i = -1; i <= 1; ++i) 
+        {
+            for (int j = -1; j <= 1; ++j) 
+            {
+                if (i == 0 && j == 0) continue;
+                int newRow = row + i, newCol = col + j;
+                if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size && (grid[newRow][newCol] == '#')) return false;
+            }
+        }
+        return true;
+    }
+
+    void printGrid() 
+    {
+        cout << "Текущая сетка:" << endl;
+
+        for (auto &row : grid) 
+        {
+            for (char cell : row) cout << (cell == ' ' ? '-' : cell) << " ";
+            cout << endl;
+        }
+    }
+
+    bool checkWin() 
+    {
+        for (int i = 0; i < size; ++i) 
+        {
+            int rowCount = 0, colCount = 0;
+
+            for (int j = 0; j < size; ++j) 
+            {
+                if (grid[i][j] == '#') rowCount++;
+                if (grid[j][i] == '#') colCount++;
+            }
+            if (rowCount != 2 || colCount != 2) return false;
+        }
+        return true;
     }
 };
 
 int main() 
 {
-    Game game(10, 10, 10);
-    game.play();
+    int size = 9;
+    
+    GappyPuzzle puzzle(size);
+    puzzle.startGame();
     return 0;
 }
